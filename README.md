@@ -94,3 +94,12 @@ To stop the pipeline and remove the containers, networks, and volumes:
 ```bash
 docker-compose down -v
 ```
+
+## Automated Tests (Bonus)
+The consumer service includes automated unit tests utilizing `pytest` to verify the `pydantic` data validation and quality rules directly. 
+
+To run the tests locally (requires Python 3.9+ and `pytest`):
+```bash
+pip install -r consumer/requirements.txt
+pytest consumer/test_app.py -v
+```
