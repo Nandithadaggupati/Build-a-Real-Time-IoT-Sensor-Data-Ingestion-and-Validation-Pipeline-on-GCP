@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+    volumes:
+      - ./mysql_data:/var/lib/mysql
+      - ./db_init.sql:/docker-entrypoint-initdb.d/db_init.sql
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  pubsub-emulator:
+    image: google/cloud-sdk:latest
+    command: gcloud beta emulators pubsub start --host-port=0.0.0.0:8085 --project=${GCP_PROJECT_ID}
+    ports:
+      - "8085:8085"
+
+  producer:
+    build: ./producer
+    environment:
+      GCP_PROJECT_ID: ${GCP_PROJECT_ID}
+      PUBSUB_TOPIC_RAW: ${PUBSUB_TOPIC_RAW}
+      PUBSUB_EMULATOR_HOST: pubsub-emulator:8085
+    depends_on:
+      - pubsub-emulator
+
+  consumer:
+    build: ./consumer
+    environment:
+      GCP_PROJECT_ID: ${GCP_PROJECT_ID}
+      PUBSUB_TOPIC_RAW: ${PUBSUB_TOPIC_RAW}
+      PUBSUB_TOPIC_DLQ: ${PUBSUB_TOPIC_DLQ}
+      PUBSUB_EMULATOR_HOST: pubsub-emulator:8085
+      MYSQL_HOST: mysql
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      pubsub-emulator:
+        condition: service_started
